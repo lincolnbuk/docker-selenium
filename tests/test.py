@@ -225,7 +225,14 @@ def standalone_browser_container_matches(container):
 
 if __name__ == '__main__':
     # The container to test against
+    import sys
+
+if len(sys.argv) > 1:
     image = sys.argv[1]
+else:
+    print("Erro: Nenhum argumento foi passado.")
+    sys.exit(1)
+
 
     use_random_user_id = USE_RANDOM_USER_ID == 'true'
     run_in_docker_compose = RUN_IN_DOCKER_COMPOSE == 'true'
