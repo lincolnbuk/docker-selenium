@@ -3,13 +3,13 @@ import concurrent.futures
 import os
 import traceback
 import time
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.firefox.options import Options as FirefoxOptions
-from selenium.webdriver.edge.options import Options as EdgeOptions
-from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium import webdriver # type: ignore
+from selenium.webdriver.common.by import By # type: ignore
+from selenium.webdriver.support.ui import WebDriverWait # type: ignore
+from selenium.webdriver.support import expected_conditions as EC # type: ignore
+from selenium.webdriver.firefox.options import Options as FirefoxOptions # type: ignore
+from selenium.webdriver.edge.options import Options as EdgeOptions # type: ignore
+from selenium.webdriver.chrome.options import Options as ChromeOptions # type: ignore
 
 SELENIUM_GRID_PROTOCOL = os.environ.get('SELENIUM_GRID_PROTOCOL', 'http')
 SELENIUM_GRID_HOST = os.environ.get('SELENIUM_GRID_HOST', 'localhost')
@@ -37,20 +37,20 @@ class SeleniumGenericTests(unittest.TestCase):
 
     def test_title(self):
         self.driver.get('https://the-internet.herokuapp.com')
-        self.assertTrue(self.driver.title == 'The Internet')
+        self.assertEqual(self.driver.title, 'The Internet')
 
     # https://github.com/tourdedave/elemental-selenium-tips/blob/master/03-work-with-frames/python/frames.py
     def test_with_frames(self):
         driver = self.driver
         driver.get('http://the-internet.herokuapp.com/nested_frames')
         wait = WebDriverWait(driver, WEB_DRIVER_WAIT_TIMEOUT)
-        frame_top = wait.until(
+        wait.until(
             EC.frame_to_be_available_and_switch_to_it('frame-top')
         )
-        frame_middle = wait.until(
+        wait.until(
             EC.frame_to_be_available_and_switch_to_it('frame-middle')
         )
-        self.assertTrue(driver.find_element(By.ID, 'content').text == "MIDDLE", "content should be MIDDLE")
+        self.assertEqual(driver.find_element(By.ID, 'content').text, "MIDDLE", "content should be MIDDLE")
 
     # https://github.com/tourdedave/elemental-selenium-tips/blob/master/05-select-from-a-dropdown/python/dropdown.py
     def test_select_from_a_dropdown(self):
@@ -66,14 +66,14 @@ class SeleniumGenericTests(unittest.TestCase):
             if opt.is_selected():
                 selected_option = opt.text
                 break
-        self.assertTrue(selected_option == 'Option 1', "Selected option should be Option 1")
+        self.assertEqual(selected_option, 'Option 1', "Selected option should be Option 1")
 
     # https://github.com/tourdedave/elemental-selenium-tips/blob/master/13-work-with-basic-auth/python/basic_auth_1.py
     def test_visit_basic_auth_secured_page(self):
         driver = self.driver
         driver.get('http://admin:admin@the-internet.herokuapp.com/basic_auth')
         page_message = driver.find_element(By.CSS_SELECTOR, '.example p').text
-        self.assertTrue(page_message == 'Congratulations! You must have the proper credentials.')
+        self.assertEqual(page_message, 'Congratulations! You must have the proper credentials.')
 
     def test_play_video(self):
         driver = self.driver
@@ -97,7 +97,6 @@ class SeleniumGenericTests(unittest.TestCase):
         driver = self.driver
         driver.get('https://the-internet.herokuapp.com/download')
         file_name = 'some-file.txt'
-        is_continue = True
         wait = WebDriverWait(driver, 30)
         file_link = wait.until(
             EC.element_to_be_clickable((By.LINK_TEXT, file_name))
@@ -213,18 +212,18 @@ class FirefoxTests(SeleniumGenericTests):
     def test_title_and_maximize_window(self):
         self.driver.get('https://the-internet.herokuapp.com')
         self.driver.maximize_window()
-        self.assertTrue(self.driver.title == 'The Internet')
+        self.assertEqual(self.driver.title, 'The Internet')
 
     def test_accept_languages(self):
         if TEST_FIREFOX_INSTALL_LANG_PACKAGE:
-            addon_id = webdriver.Firefox.install_addon(self.driver, "./target/firefox_lang_packs/langpack-vi@firefox.mozilla.org.xpi")
+            webdriver.Firefox.install_addon(self.driver, "./target/firefox_lang_packs/langpack-vi@firefox.mozilla.org.xpi")
         self.driver.get('https://gtranslate.io/detect-browser-language')
         wait = WebDriverWait(self.driver, WEB_DRIVER_WAIT_TIMEOUT)
         lang_code = wait.until(
             EC.presence_of_element_located((By.XPATH, '(//*[@class="notranslate"])[1]'))
         )
         self.driver.execute_script("arguments[0].scrollIntoView();", lang_code)
-        self.assertTrue(lang_code.text == 'vi-VN', "Language code should be vi-VN")
+        self.assertEqual(lang_code.text, 'vi-VN', "Language code should be vi-VN")
         time.sleep(1)
         self.driver.get('https://google.com')
         time.sleep(2)
@@ -232,42 +231,53 @@ class FirefoxTests(SeleniumGenericTests):
 class Autoscaling():
     def run(self, test_classes):
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = []
-            tests = []
-            start_times = {}
-            for test_class in test_classes:
-                suite = unittest.TestLoader().loadTestsFromTestCase(test_class)
-                for test in suite:
-                    start_times[test] = time.time()
-                    futures.append(executor.submit(test))
-                    tests.append(test)
+            futures, tests, start_times = self._submit_tests(executor, test_classes)
             print(f"Number of tests were added to worker: {len(tests)}")
-            failed_tests = []
-            for future, test in zip(concurrent.futures.as_completed(futures), tests):
-                try:
-                    completion_time = time.time() - start_times[test]
-                    print(f"Finish: {str(test)} completed in {str(completion_time)} (s)")
-                    if not future.result().wasSuccessful():
-                        raise Exception
-                except Exception as e:
-                    failed_tests.append(test)
-                    print(traceback.format_exc())
-                    print(f"{str(test)} failed with exception: {str(e)}")
-                    print(f"Original exception: {e.__cause__}")
-            if len(failed_tests) > 0:
-                print(f"Number of failed tests: {len(failed_tests)}. Going to rerun!")
-                for test in failed_tests:
-                    try:
-                        print(f"Rerunning test: {str(test)}")
-                        rerun_result = test.run()
-                        if not rerun_result.wasSuccessful():
-                            raise Exception
-                    except Exception as e:
-                        print(traceback.format_exc())
-                        print(f"Test {str(test)} failed again with exception: {str(e)}")
-                        print(f"Original exception: {e.__cause__}")
-                        raise Exception(f"Rerun test failed: {str(test)} failed with exception: {str(e)}")
-                print(f"::warning:: Number of failed tests: {len(failed_tests)}. All tests passed in rerun!")
+            failed_tests = self._process_test_results(futures, tests, start_times)
+            if failed_tests:
+                self._rerun_failed_tests(failed_tests)
+
+    def _submit_tests(self, executor, test_classes):
+        futures = []
+        tests = []
+        start_times = {}
+        for test_class in test_classes:
+            suite = unittest.TestLoader().loadTestsFromTestCase(test_class)
+            for test in suite:
+                start_times[test] = time.time()
+                futures.append(executor.submit(test))
+                tests.append(test)
+        return futures, tests, start_times
+
+    def _process_test_results(self, futures, tests, start_times):
+        failed_tests = []
+        for future, test in zip(concurrent.futures.as_completed(futures), tests):
+            try:
+                completion_time = time.time() - start_times[test]
+                print(f"Finish: {str(test)} completed in {str(completion_time)} (s)")
+                if not future.result().wasSuccessful():
+                    raise AssertionError
+            except Exception as e:
+                failed_tests.append(test)
+                print(traceback.format_exc())
+                print(f"{str(test)} failed with exception: {str(e)}")
+                print(f"Original exception: {e.__cause__}")
+        return failed_tests
+
+    def _rerun_failed_tests(self, failed_tests):
+        print(f"Number of failed tests: {len(failed_tests)}. Going to rerun!")
+        for test in failed_tests:
+            try:
+                print(f"Rerunning test: {str(test)}")
+                rerun_result = test.run()
+                if not rerun_result.wasSuccessful():
+                    raise AssertionError
+            except Exception as e:
+                print(traceback.format_exc())
+                print(f"Test {str(test)} failed again with exception: {str(e)}")
+                print(f"Original exception: {e.__cause__}")
+                raise AssertionError(f"Rerun test failed: {str(test)} failed with exception: {str(e)}")
+        print(f"::warning:: Number of failed tests: {len(failed_tests)}. All tests passed in rerun!")
 
 class DeploymentAutoscalingTests(unittest.TestCase):
     def test_parallel_autoscaling(self):
