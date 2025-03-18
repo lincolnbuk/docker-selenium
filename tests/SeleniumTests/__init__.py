@@ -300,7 +300,7 @@ class JobAutoscalingTests(unittest.TestCase):
 class TestPlatform:
     def add_test_based_platform(self, repeat):
         tests = []
-        for i in range(repeat):
+        for _ in range(repeat):
             if TEST_PLATFORMS == 'linux/amd64':
                 tests.extend([FirefoxTests, ChromeTests, EdgeTests])
             else:
