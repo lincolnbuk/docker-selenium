@@ -1,11 +1,15 @@
 ARG NAMESPACE=selenium
-ARG VERSION=latest
 ARG BASE=node-base
-FROM ${NAMESPACE}/${BASE}:${VERSION}
+FROM selenium/node-base:4.0.0-20211013
+ARG VERSION=latest
 ARG AUTHORS
 LABEL authors=${AUTHORS}
+LABEL Name="selenium-standalone" \
+      Version=${VERSION} \
+      Description="Selenium Standalone Docker Image" \
+      Maintainer=${AUTHORS}
 
-USER ${SEL_UID}
+USER root
 
 #====================================
 # Scripts to run Selenium Standalone
@@ -32,3 +36,6 @@ ENV SE_SESSION_REQUEST_TIMEOUT=300 \
     SE_OTEL_SERVICE_NAME="selenium-standalone"
 
 EXPOSE 4444
+
+# Default command to start Selenium Standalone
+CMD ["sh", "/opt/bin/start-selenium-standalone.sh"]

@@ -18,30 +18,12 @@ HUB_CHECKS_INTERVAL = os.environ.get('HUB_CHECKS_INTERVAL', 10)
 
 class SmokeTests(unittest.TestCase):
     def smoke_test_container(self, port):
-        current_attempts = 0
         max_attempts = int(HUB_CHECKS_MAX_ATTEMPTS)
         sleep_interval = int(HUB_CHECKS_INTERVAL)
-        status_fetched = False
-        status_json = None
         auto_scaling = SELENIUM_GRID_AUTOSCALING == 'true'
         auto_scaling_min_replica = int(SELENIUM_GRID_AUTOSCALING_MIN_REPLICA)
 
-        while current_attempts < max_attempts:
-            current_attempts = current_attempts + 1
-            try:
-                grid_url_status = '%s://%s:%s/status' % (SELENIUM_GRID_PROTOCOL, SELENIUM_GRID_HOST, port)
-                if SELENIUM_GRID_USERNAME and SELENIUM_GRID_PASSWORD:
-                    response = requests.get(grid_url_status, auth=HTTPBasicAuth(SELENIUM_GRID_USERNAME, SELENIUM_GRID_PASSWORD))
-                else:
-                    response = requests.get(grid_url_status)
-                status_json = response.json()
-                if not auto_scaling or (auto_scaling and auto_scaling_min_replica > 0):
-                    self.assertTrue(status_json['value']['ready'], "Container is not ready on port %s" % port)
-                else:
-                    self.assertFalse(status_json['value']['ready'], "Container is autoscaling with min replica set to 0")
-                status_fetched = True
-            except Exception as e:
-                time.sleep(sleep_interval)
+        status_fetched, status_json = self.fetch_container_status(port, max_attempts, sleep_interval, auto_scaling, auto_scaling_min_replica)
 
         if not auto_scaling or (auto_scaling and auto_scaling_min_replica > 0):
             self.assertTrue(status_fetched, "Container status was not fetched on port %s" % port)
@@ -49,11 +31,38 @@ class SmokeTests(unittest.TestCase):
         else:
             self.assertFalse(status_json['value']['ready'], "Container is autoscaling with min replica set to 0")
 
+    def fetch_container_status(self, port, max_attempts, sleep_interval, auto_scaling, auto_scaling_min_replica):
+        current_attempts = 0
+        status_fetched = False
+        status_json = None
+
+        while current_attempts < max_attempts:
+            current_attempts += 1
+            try:
+                grid_url_status = '%s://%s:%s/status' % (SELENIUM_GRID_PROTOCOL, SELENIUM_GRID_HOST, port)
+                response = self.get_grid_status_response(grid_url_status)
+                status_json = response.json()
+                if not auto_scaling or (auto_scaling and auto_scaling_min_replica > 0):
+                    self.assertTrue(status_json['value']['ready'], "Container is not ready on port %s" % port)
+                else:
+                    self.assertFalse(status_json['value']['ready'], "Container is autoscaling with min replica set to 0")
+                status_fetched = True
+            except Exception:
+                time.sleep(sleep_interval)
+        
+        return status_fetched, status_json
+
+    def get_grid_status_response(self, grid_url_status):
+        if SELENIUM_GRID_USERNAME and SELENIUM_GRID_PASSWORD:
+            return requests.get(grid_url_status, auth=HTTPBasicAuth(SELENIUM_GRID_USERNAME, SELENIUM_GRID_PASSWORD))
+        else:
+            return requests.get(grid_url_status)
+
 
     def client_verify_cert(self, port):
         grid_url_status = '%s://%s:%s/status' % (SELENIUM_GRID_PROTOCOL, SELENIUM_GRID_HOST, port)
         cert_path = os.environ.get("REQUESTS_CA_BUNDLE")
-        response = requests.get(grid_url_status, verify=cert_path)
+        requests.get(grid_url_status, verify=cert_path)
 
 class GridTest(SmokeTests):
     def test_grid_is_up(self):

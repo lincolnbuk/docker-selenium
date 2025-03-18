@@ -7,24 +7,24 @@ import re
 import platform
 import signal
 
-import docker
-from docker.errors import NotFound
+import docker # type: ignore
+from docker.errors import NotFound # type: ignore
 
 def clean_up():
-  logger.info("Cleaning up...")
+    logger.info("Cleaning up...")
 
-  test_container = client.containers.get(test_container_id)
-  test_container.kill()
-  test_container.remove()
+    test_container = client.containers.get(test_container_id)
+    test_container.kill()
+    test_container.remove()
 
-  if standalone:
-     logger.info("Standalone Cleaned up")
-  else:
-     # Kill the launched hub
-     hub = client.containers.get(hub_id)
-     hub.kill()
-     hub.remove()
-     logger.info("Hub / Node Cleaned up")
+    if standalone:
+        logger.info("Standalone Cleaned up")
+    else:
+        # Kill the launched hub
+        hub = client.containers.get(hub_id)
+        hub.kill()
+        hub.remove()
+        logger.info("Hub / Node Cleaned up")
 
 def signal_handler(signum, frame):
     clean_up()
@@ -51,7 +51,7 @@ BASE_RELEASE = os.environ.get('BASE_RELEASE')
 
 try:
     client = docker.from_env()
-except:
+except docker.errors.DockerException:
     client = None
 
 IMAGE_NAME_MAP = {
@@ -169,18 +169,18 @@ def launch_container(container, **kwargs):
         logger.info("SKIP_BUILD is true...not rebuilding images...")
     else:
         PLATFORM_LIST = PLATFORMS.split(',')
-        for PLATFORM in PLATFORM_LIST:
-            if get_platform() != PLATFORM:
+        for platform in PLATFORM_LIST:
+            if get_platform() != platform:
                 continue
             # Build the container if it doesn't exist
-            logger.info("Building %s container in platform %s..." % (container, PLATFORM))
+            logger.info("Building %s container in platform %s..." % (container, platform))
             set_from_image_base_for_standalone(container)
             build_path = get_build_path(container)
             client.images.build(path='../%s' % build_path,
                                 tag="%s/%s:%s" % (NAMESPACE, IMAGE_NAME_MAP[container], VERSION),
                                 rm=True,
                                 buildargs=FROM_IMAGE_ARGS,
-                                platform=PLATFORM,)
+                                platform=platform,)
             logger.info("Done building %s" % container)
 
     # Run the container
@@ -227,11 +227,11 @@ if __name__ == '__main__':
     # The container to test against
     import sys
 
-if len(sys.argv) > 1:
-    image = sys.argv[1]
-else:
-    print("Erro: Nenhum argumento foi passado.")
-    sys.exit(1)
+    if len(sys.argv) > 1:
+        image = sys.argv[1]
+    else:
+        print("Erro: Nenhum argumento foi passado.")
+        sys.exit(1)
 
 
     use_random_user_id = USE_RANDOM_USER_ID == 'true'
