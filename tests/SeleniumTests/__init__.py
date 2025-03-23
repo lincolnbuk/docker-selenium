@@ -3,6 +3,7 @@ import os
 import time
 import traceback
 import unittest
+import requests  # Adicionado para verificar conectividade com o Selenium Grid
 
 from selenium import webdriver  # type: ignore
 from selenium.webdriver.chrome.options import Options as ChromeOptions  # type: ignore
@@ -45,7 +46,20 @@ if TEST_NODE_RELAY == "Android":
     time.sleep(90)
 
 
+def is_selenium_grid_accessible():
+    """Verifica se o Selenium Grid está acessível."""
+    grid_url = f"{SELENIUM_GRID_PROTOCOL}://{SELENIUM_GRID_HOST}:{SELENIUM_GRID_PORT}/wd/hub/status"
+    try:
+        response = requests.get(grid_url, timeout=5)
+        return response.status_code == 200
+    except requests.RequestException:
+        return False
+
+
 class SeleniumGenericTests(unittest.TestCase):
+    def setUp(self):
+        if not is_selenium_grid_accessible():
+            self.skipTest(f"Selenium Grid não está acessível em {SELENIUM_GRID_HOST}:{SELENIUM_GRID_PORT}")
 
     def test_title(self):
         self.driver.get("https://the-internet.herokuapp.com")
@@ -132,6 +146,33 @@ class SeleniumGenericTests(unittest.TestCase):
         wait.until(lambda d: str(d.get_downloadable_files()[0]).endswith(file_name))
         self.assertTrue(str(driver.get_downloadable_files()[0]).endswith(file_name))
 
+    def test_login_swag_labs(self):
+        """
+        Testa o login no site Swag Labs com credenciais válidas.
+        """
+        driver = self.driver
+        driver.get("https://www.saucedemo.com")
+
+        # Localiza os campos de username, password e o botão de login
+        username_field = driver.find_element(By.ID, "user-name")
+        password_field = driver.find_element(By.ID, "password")
+        login_button = driver.find_element(By.ID, "login-button")
+
+        # Insere credenciais válidas
+        username_field.send_keys("standard_user")
+        password_field.send_keys("secret_sauce")
+        login_button.click()
+
+        # Aguarda até que a página principal seja carregada
+        wait = WebDriverWait(driver, WEB_DRIVER_WAIT_TIMEOUT)
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "inventory_list")))
+
+        # Verifica se o login foi bem-sucedido
+        self.assertTrue(
+            driver.find_element(By.CLASS_NAME, "inventory_list").is_displayed(),
+            "A lista de inventário deve estar visível após o login bem-sucedido.",
+        )
+
     def tearDown(self):
         try:
             if TEST_DELAY_AFTER_TEST:
@@ -145,6 +186,8 @@ class SeleniumGenericTests(unittest.TestCase):
 
 class ChromeTests(SeleniumGenericTests):
     def setUp(self):
+        if not is_selenium_grid_accessible():
+            self.skipTest(f"Selenium Grid não está acessível em {SELENIUM_GRID_HOST}:{SELENIUM_GRID_PORT}")
         try:
             options = ChromeOptions()
             options.enable_downloads = SELENIUM_ENABLE_MANAGED_DOWNLOADS
@@ -190,21 +233,23 @@ class ChromeTests(SeleniumGenericTests):
 
 class EdgeTests(SeleniumGenericTests):
     def setUp(self):
-            try:
-                options = self._get_edge_options()
-                start_time = time.time()
-                self.driver = webdriver.Remote(
-                    options=options,
-                    command_executor=f"{SELENIUM_GRID_PROTOCOL}://{SELENIUM_GRID_HOST}:{SELENIUM_GRID_PORT}",
-                )
-                end_time = time.time()
-                print(
-                    f"Begin: {self._testMethodName} ({self.__class__.__name__}) WebDriver initialization completed in {end_time - start_time:.2f} (s)"
-                )
-            except Exception as e:
-                print(f"::error::Exception: {str(e)}")
-                print(traceback.format_exc())
-                raise e
+        if not is_selenium_grid_accessible():
+            self.skipTest(f"Selenium Grid não está acessível em {SELENIUM_GRID_HOST}:{SELENIUM_GRID_PORT}")
+        try:
+            options = self._get_edge_options()
+            start_time = time.time()
+            self.driver = webdriver.Remote(
+                options=options,
+                command_executor=f"{SELENIUM_GRID_PROTOCOL}://{SELENIUM_GRID_HOST}:{SELENIUM_GRID_PORT}",
+            )
+            end_time = time.time()
+            print(
+                f"Begin: {self._testMethodName} ({self.__class__.__name__}) WebDriver initialization completed in {end_time - start_time:.2f} (s)"
+            )
+        except Exception as e:
+            print(f"::error::Exception: {str(e)}")
+            print(traceback.format_exc())
+            raise e
     
     def _get_edge_options(self):
             options = EdgeOptions()
@@ -222,6 +267,8 @@ class EdgeTests(SeleniumGenericTests):
 
 class FirefoxTests(SeleniumGenericTests):
     def setUp(self):
+        if not is_selenium_grid_accessible():
+            self.skipTest(f"Selenium Grid não está acessível em {SELENIUM_GRID_HOST}:{SELENIUM_GRID_PORT}")
         try:
             profile = self._setup_firefox_profile()
             options = FirefoxOptions()
@@ -364,3 +411,7 @@ class TestPlatform:
             else:
                 tests.extend([FirefoxTests, ChromeTests])
         return tests
+
+
+if __name__ == "__main__":
+    unittest.main()
