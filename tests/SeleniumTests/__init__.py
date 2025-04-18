@@ -173,6 +173,115 @@ class SeleniumGenericTests(unittest.TestCase):
             "A lista de inventário deve estar visível após o login bem-sucedido.",
         )
 
+    def test_add_item_to_cart(self):
+        """
+        (1º caso) Testa a adição de um item ao carrinho de compras.
+        """
+        driver = self.driver
+        driver.get("https://www.saucedemo.com")
+        driver.find_element(By.ID, "user-name").send_keys("standard_user")
+        driver.find_element(By.ID, "password").send_keys("secret_sauce")
+        driver.find_element(By.ID, "login-button").click()
+
+        # Adiciona um item ao carrinho
+        driver.find_element(By.ID, "add-to-cart-sauce-labs-backpack").click()
+        cart_badge = driver.find_element(By.CLASS_NAME, "shopping_cart_badge")
+        self.assertEqual(cart_badge.text, "1", "O carrinho deve conter 1 item.")
+
+    def test_add_multiple_items_to_cart(self):
+        """
+        (2º caso) Testa a adição de múltiplos itens ao carrinho de compras.
+        """
+        driver = self.driver
+        driver.get("https://www.saucedemo.com")
+        driver.find_element(By.ID, "user-name").send_keys("standard_user")
+        driver.find_element(By.ID, "password").send_keys("secret_sauce")
+        driver.find_element(By.ID, "login-button").click()
+
+        # Adiciona múltiplos itens ao carrinho
+        driver.find_element(By.ID, "add-to-cart-sauce-labs-backpack").click()
+        driver.find_element(By.ID, "add-to-cart-sauce-labs-bike-light").click()
+        cart_badge = driver.find_element(By.CLASS_NAME, "shopping_cart_badge")
+        self.assertEqual(cart_badge.text, "2", "O carrinho deve conter 2 itens.")
+
+    def test_review_cart_items(self):
+        """
+        (3º caso) Testa a revisão dos itens no carrinho antes de finalizar a compra.
+        """
+        driver = self.driver
+        driver.get("https://www.saucedemo.com")
+        driver.find_element(By.ID, "user-name").send_keys("standard_user")
+        driver.find_element(By.ID, "password").send_keys("secret_sauce")
+        driver.find_element(By.ID, "login-button").click()
+
+        # Adiciona itens ao carrinho
+        driver.find_element(By.ID, "add-to-cart-sauce-labs-backpack").click()
+        driver.find_element(By.CLASS_NAME, "shopping_cart_link").click()
+
+        # Verifica os itens no carrinho
+        cart_item = driver.find_element(By.CLASS_NAME, "inventory_item_name")
+        self.assertEqual(cart_item.text, "Sauce Labs Backpack", "O item no carrinho deve ser 'Sauce Labs Backpack'.")
+
+    def test_adjust_item_quantity(self):
+        """
+        (4º caso) Testa o ajuste da quantidade de itens no carrinho.
+        """
+        driver = self.driver
+        driver.get("https://www.saucedemo.com")
+        driver.find_element(By.ID, "user-name").send_keys("standard_user")
+        driver.find_element(By.ID, "password").send_keys("secret_sauce")
+        driver.find_element(By.ID, "login-button").click()
+
+        # Adiciona e remove itens do carrinho
+        driver.find_element(By.ID, "add-to-cart-sauce-labs-backpack").click()
+        driver.find_element(By.ID, "remove-sauce-labs-backpack").click()
+        cart_badge = driver.find_elements(By.CLASS_NAME, "shopping_cart_badge")
+        self.assertEqual(len(cart_badge), 0, "O carrinho deve estar vazio.")
+
+    def test_product_display_on_homepage(self):
+        """
+        (5º caso) Testa a exibição clara dos produtos na página inicial.
+        """
+        driver = self.driver
+        driver.get("https://www.saucedemo.com")
+        driver.find_element(By.ID, "user-name").send_keys("standard_user")
+        driver.find_element(By.ID, "password").send_keys("secret_sauce")
+        driver.find_element(By.ID, "login-button").click()
+
+        # Verifica se os produtos estão visíveis
+        products = driver.find_elements(By.CLASS_NAME, "inventory_item")
+        self.assertGreater(len(products), 0, "A página inicial deve exibir produtos.")
+
+    def test_view_all_products_on_homepage(self):
+        """
+        (6º caso) Testa a visualização de todos os produtos na página inicial.
+        """
+        driver = self.driver
+        driver.get("https://www.saucedemo.com")
+        driver.find_element(By.ID, "user-name").send_keys("standard_user")
+        driver.find_element(By.ID, "password").send_keys("secret_sauce")
+        driver.find_element(By.ID, "login-button").click()
+
+        # Verifica se todos os produtos estão listados
+        product_names = driver.find_elements(By.CLASS_NAME, "inventory_item_name")
+        self.assertGreater(len(product_names), 0, "Todos os produtos devem ser exibidos na página inicial.")
+
+    def test_login_with_valid_credentials(self):
+        """
+        (7º caso) Testa o login com credenciais válidas.
+        """
+        driver = self.driver
+        driver.get("https://www.saucedemo.com")
+        driver.find_element(By.ID, "user-name").send_keys("standard_user")
+        driver.find_element(By.ID, "password").send_keys("secret_sauce")
+        driver.find_element(By.ID, "login-button").click()
+
+        # Verifica se o login foi bem-sucedido
+        self.assertTrue(
+            driver.find_element(By.CLASS_NAME, "inventory_list").is_displayed(),
+            "O login deve ser bem-sucedido e a lista de inventário deve ser exibida.",
+        )
+
     def tearDown(self):
         try:
             if TEST_DELAY_AFTER_TEST:
