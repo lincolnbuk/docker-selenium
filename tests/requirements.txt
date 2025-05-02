@@ -1,0 +1,3 @@
+selenium==4.24.0
+unittest-xml-reporting==3.0.4
+requests==2.31.0
