@@ -12,7 +12,7 @@ import time
 class SwagLabsLoginTest(unittest.TestCase):
     def setUp(self):
         browser = (
-            "firefox"  # Altere para "chrome" ou "edge" para testar outros navegadores
+            "chrome"  # Altere para "chrome" ou "edge" para testar outros navegadores
         )
 
         if browser == "chrome":
